@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "PRM391 Projec",
   "main": "index.js",
+  "engines": {
+    "node": "10.x"
+  },
   "scripts": {
     "start": "nodemon index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -30,4 +33,5 @@
     "nodemon": "^2.0.4",
     "sequelize-cli": "^6.1.0"
   }
+  
 }
