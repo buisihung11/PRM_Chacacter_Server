@@ -4,7 +4,7 @@
   "description": "PRM391 Projec",
   "main": "index.js",
   "engines": {
-    "node": ">=13.0.0"
+    "node": "13.0.0"
   },
   "scripts": {
     "start": "node index.js",
@@ -23,15 +23,14 @@
     "mssql": "^6.2.0",
     "sequelize": "^5.22.3",
     "swagger-ui-express": "^4.1.4",
-    "tedious": "^8.3.0"
+    "tedious": "^8.3.0",
+    "morgan": "^1.10.0"
   },
   "devDependencies": {
     "eslint": "^7.3.1",
     "eslint-config-airbnb-base": "^14.2.0",
     "eslint-plugin-import": "^2.22.0",
-    "morgan": "^1.10.0",
     "nodemon": "^2.0.4",
     "sequelize-cli": "^6.1.0"
   }
-  
 }
