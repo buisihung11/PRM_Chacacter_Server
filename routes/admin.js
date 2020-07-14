@@ -104,10 +104,39 @@ router
     return res.status(201).send(createdCharacter);
   });
 
-router.route('/actors').get(async (req, res) => {
-  const actors = await adminService.getActors();
-  return res.send(actors);
-});
+router
+  .route('/actors')
+  .get(async (req, res) => {
+    const actors = await adminService.getActors();
+    return res.send(actors);
+  })
+  .post(async (req, res) => {
+    const {
+      username,
+      password,
+      description,
+      imageURL,
+      gender,
+      phone,
+      name,
+    } = req.body;
+
+    try {
+      const createdActor = await adminService.createActor({
+        username,
+        password,
+        description,
+        imageURL,
+        gender,
+        phone,
+        name,
+      });
+
+      return res.status(201).send(createdActor);
+    } catch (e) {
+      return res.status(400).send({ error: e.message });
+    }
+  });
 
 router.route('/actors/:actorId').delete(async (req, res) => {
   const { actorId } = req.params;
@@ -119,19 +148,38 @@ router.route('/actors/:actorId').delete(async (req, res) => {
   }
 });
 
-router.route('/equipments').get(async (req, res) => {
-  const {
-    status,
-    fromDate = new Date().toISOString(),
-    toDate = new Date().toISOString(),
-  } = req.query;
-  const equipments = await adminService.getEquipments({
-    status,
-    fromDate,
-    toDate,
+router
+  .route('/equipments')
+  .get(async (req, res) => {
+    const {
+      status,
+      fromDate = new Date().toISOString(),
+      toDate = new Date().toISOString(),
+    } = req.query;
+    const equipments = await adminService.getEquipments({
+      status,
+      fromDate,
+      toDate,
+    });
+    return res.send(equipments);
+  })
+  .post(async (req, res) => {
+    const { name, description, imageURL, status, quantity } = req.body;
+
+    try {
+      const createdEquipment = await adminService.createEquipment({
+        name,
+        description,
+        imageURL,
+        status,
+        quantity,
+      });
+
+      return res.status(201).send(createdEquipment);
+    } catch (e) {
+      return res.status(400).send({ error: e.message });
+    }
   });
-  return res.send(equipments);
-});
 
 router.route('/equipments/:equipmentId').delete(async (req, res) => {
   const { equipmentId } = req.params;

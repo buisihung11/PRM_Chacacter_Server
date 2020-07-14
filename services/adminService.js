@@ -1,3 +1,4 @@
+/* eslint-disable no-useless-catch */
 /* eslint-disable class-methods-use-this */
 const {
   Scence,
@@ -7,6 +8,7 @@ const {
   Equipment,
   User,
 } = require('../models/index');
+const sequelize = require('../utils/sequilize');
 
 class AdminService {
   setUser(user) {
@@ -26,7 +28,7 @@ class AdminService {
 
   // #region Actor
   async getActors() {
-    const actor = await Actor.findAll({
+    const actors = await Actor.findAll({
       include: [
         {
           required: true,
@@ -37,8 +39,84 @@ class AdminService {
         },
       ],
     });
+    const nomarlizeActorList = actors.map((actor) => {
+      // console.log('actor', actor);
+      // console.log('actor.User', actor.User);
+      return {
+        id: actor.id,
+        description: actor.description,
+        imageURL: actor.imageURL,
+        username: actor.User.username,
+        gender: actor.User.gender,
+        phone: actor.User.phone,
+        name: actor.User.name,
+        createdAt: actor.createdAt,
+        updatedAt: actor.updatedAt,
+      };
+    });
 
-    return actor;
+    return nomarlizeActorList;
+  }
+
+  async createActor({
+    username,
+    password,
+    description,
+    imageURL,
+    gender,
+    phone,
+    name,
+  }) {
+    // check required input
+    if (!username || !password || !name || !gender)
+      throw new Error('Invalid Input');
+
+    // check whether has user with that email
+    const user = await User.findOne({
+      where: { username },
+    });
+
+    if (user) throw new Error('That email is already taken!');
+
+    try {
+      const result = await sequelize.transaction(async (t) => {
+        const createdUser = await User.create({
+          role: 'actor',
+          username,
+          password,
+          gender,
+          phone,
+          name,
+        });
+        if (!createdUser) {
+          throw new Error('Error when creating user');
+        }
+
+        const createdActor = await Actor.create({
+          description,
+          imageURL,
+          UserId: createdUser.id,
+        });
+
+        return {
+          id: createdActor.id,
+          username: createdUser.username,
+          description: createdActor.description,
+          imageURL: createdActor.imageURL,
+          gender: createdUser.gender,
+          phone: createdUser.phone,
+          name: createdUser.name,
+        };
+      });
+
+      // If the execution reaches this line, the transaction has been committed successfully
+      // `result` is whatever was returned from the transaction callback (the `user`, in this case)
+      return result;
+    } catch (error) {
+      // If the execution reaches this line, an error occurred.
+      // The transaction has already been rolled back automatically by Sequelize!
+      throw error;
+    }
   }
 
   async deleteActor(actorId) {
@@ -70,6 +148,26 @@ class AdminService {
       // where.
     }
     return Equipment.findAll({ where });
+  }
+
+  async createEquipment({ name, description, imageURL, status, quantity }) {
+    // check required input
+    if (!quantity || !status || !name) throw new Error('Invalid Input');
+
+    try {
+      const createdEquipemnt = await Equipment.create({
+        name,
+        description,
+        imageURL,
+        status,
+        quantity,
+      });
+      return createdEquipemnt;
+    } catch (error) {
+      // If the execution reaches this line, an error occurred.
+      // The transaction has already been rolled back automatically by Sequelize!
+      throw error;
+    }
   }
 
   async deleteEquipment(equipmentId) {
