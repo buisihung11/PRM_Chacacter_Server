@@ -26,10 +26,10 @@
 
 ### 2. **Actors**
 
-1. [ ] GET,POST /actors
-2. [ ] PUT,DELETE /actors/:id
+1. [x] GET,POST /actors
+2. [x] PUT,DELETE /actors/:id
 
 ### 3. **Equipments**
 
-1. [ ] GET,POST /equipments
-2. [ ] PUT,DELETE /equipments/:id
+1. [x] GET,POST /equipments
+2. [x] PUT,DELETE /equipments/:id

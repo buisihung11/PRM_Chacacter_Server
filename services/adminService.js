@@ -119,6 +119,84 @@ class AdminService {
     }
   }
 
+  async updateActor({
+    id,
+    password,
+    description,
+    imageURL,
+    gender,
+    phone,
+    name,
+  }) {
+    // check required input
+    if (!id || !password || !name || !gender) {
+      throw new Error('Invalid Input');
+    }
+
+    // check whether has user with that email
+    const actor = await Actor.findOne({
+      where: {
+        id,
+      },
+      include: [
+        {
+          required: true,
+          model: User,
+          where: {
+            isDeleted: false,
+          },
+        },
+      ],
+    });
+
+    if (!actor) throw new Error('Not found that actor!');
+
+    try {
+      const result = await sequelize.transaction(async (t) => {
+        const user = await User.findOne({
+          where: {
+            id: actor.User.id,
+          },
+        });
+        if (!actor) {
+          throw new Error('Not found that actor!');
+        }
+        const updatedUser = await user.update({
+          password,
+          gender,
+          phone,
+          name,
+        });
+        if (!updatedUser) {
+          throw new Error('Error when update user');
+        }
+
+        const updatedActor = await actor.update({
+          description,
+          imageURL,
+        });
+
+        return {
+          id: updatedActor.id,
+          username: updatedUser.username,
+          description: updatedActor.description,
+          imageURL: updatedActor.imageURL,
+          gender: updatedUser.gender,
+          phone: updatedUser.phone,
+          name: updatedUser.name,
+        };
+      });
+
+      // If the execution reaches this line, the transaction has been committed successfully
+      // `result` is whatever was returned from the transaction callback (the `user`, in this case)
+      return result;
+    } catch (error) {
+      // If the execution reaches this line, an error occurred.
+      // The transaction has already been rolled back automatically by Sequelize!
+      throw error;
+    }
+  }
+
   async deleteActor(actorId) {
     const actor = await Actor.findByPk(actorId);
     if (!actor) throw new Error('Not found that actor');
@@ -163,6 +241,35 @@ class AdminService {
         quantity,
       });
       return createdEquipemnt;
+    } catch (error) {
+      // If the execution reaches this line, an error occurred.
+      // The transaction has already been rolled back automatically by Sequelize!
+      throw error;
+    }
+  }
+
+  async updateEquipment({ id, name, description, imageURL, status, quantity }) {
+    // check required input
+    if (!quantity || !status || !name || !id) throw new Error('Invalid Input');
+
+    try {
+      const equipment = await Equipment.findOne({
+        where: {
+          id,
+          isDeleted: false,
+        },
+      });
+      if (!equipment) throw new Error('Cannot found that equipment');
+
+      const updatedEquipemnt = await equipment.update({
+        name,
+        description,
+        imageURL,
+        status,
+        quantity,
+      });
+
+      return updatedEquipemnt;
     } catch (error) {
       // If the execution reaches this line, an error occurred.
       // The transaction has already been rolled back automatically by Sequelize!

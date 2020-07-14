@@ -138,15 +138,37 @@ router
     }
   });
 
-router.route('/actors/:actorId').delete(async (req, res) => {
-  const { actorId } = req.params;
-  try {
-    const deletedActorId = await adminService.deleteActor(actorId);
-    return res.status(200).send({ actorId: deletedActorId });
-  } catch (e) {
-    return res.status(400).send({ error: e.message });
-  }
-});
+router
+  .route('/actors/:actorId')
+  .delete(async (req, res) => {
+    const { actorId } = req.params;
+    try {
+      const deletedActorId = await adminService.deleteActor(actorId);
+      return res.status(200).send({ actorId: deletedActorId });
+    } catch (e) {
+      return res.status(400).send({ error: e.message });
+    }
+  })
+  .put(async (req, res) => {
+    const { actorId } = req.params;
+    const { password, description, imageURL, gender, phone, name } = req.body;
+
+    try {
+      const updatedActor = await adminService.updateActor({
+        id: actorId,
+        password,
+        description,
+        imageURL,
+        gender,
+        phone,
+        name,
+      });
+
+      return res.status(204).send(updatedActor);
+    } catch (e) {
+      return res.status(400).send({ error: e.message });
+    }
+  });
 
 router
   .route('/equipments')
@@ -181,14 +203,35 @@ router
     }
   });
 
-router.route('/equipments/:equipmentId').delete(async (req, res) => {
-  const { equipmentId } = req.params;
-  try {
-    const deletedEquipmentId = await adminService.deleteEquipment(equipmentId);
-    return res.status(200).send({ equipmentId: deletedEquipmentId });
-  } catch (e) {
-    return res.status(400).send({ error: e.message });
-  }
-});
+router
+  .route('/equipments/:equipmentId')
+  .delete(async (req, res) => {
+    const { equipmentId } = req.params;
+    try {
+      const deletedEquipmentId = await adminService.deleteEquipment(
+        equipmentId,
+      );
+      return res.status(200).send({ equipmentId: deletedEquipmentId });
+    } catch (e) {
+      return res.status(400).send({ error: e.message });
+    }
+  })
+  .put(async (req, res) => {
+    const { equipmentId } = req.params;
+    const { name, description, imageURL, status, quantity } = req.body;
+    try {
+      const updatedEquipment = await adminService.updateEquipment({
+        id: equipmentId,
+        name,
+        description,
+        imageURL,
+        status,
+        quantity,
+      });
+      return res.status(204).send(updatedEquipment);
+    } catch (e) {
+      return res.status(400).send({ error: e.message });
+    }
+  });
 
 module.exports = router;
