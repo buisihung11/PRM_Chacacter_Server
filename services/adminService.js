@@ -22,7 +22,41 @@ class AdminService {
   }
 
   async getScenceById(id) {
-    const scenceDetail = await Scence.findByPk(id);
+    const scenceDetail = await Scence.findOne({
+      where: {
+        id,
+        isDeleted: false,
+      },
+      include: [
+        {
+          // required: true,
+          model: Character,
+          include: [
+            {
+              model: Actor,
+              include: [
+                {
+                  model: User,
+                  // through: {
+                  //   attributes: ['name', 'username', 'role', 'gender'],
+                  // },
+                },
+              ],
+              through: {
+                attributes: [],
+              },
+            },
+          ],
+        },
+        {
+          // required: true,
+          model: Equipment,
+          through: {
+            attributes: [],
+          },
+        },
+      ],
+    });
     return scenceDetail;
   }
 

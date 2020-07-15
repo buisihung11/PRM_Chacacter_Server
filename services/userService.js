@@ -71,6 +71,7 @@ class UserService {
       where: {
         id: scenceIds,
         ...where,
+        isDeleted: false,
       },
     });
 
