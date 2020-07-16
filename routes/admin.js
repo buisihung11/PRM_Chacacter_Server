@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 const express = require('express');
 const adminService = require('../services/adminService');
 
@@ -10,23 +11,24 @@ router
     return res.send(scences);
   })
   .post(async (req, res) => {
-    const {
-      name,
-      description,
-      filmingAddress,
-      filmingStartDate,
-      filmingEndDate,
-      setQuantity,
-    } = req.body;
+    const { tribulation, characters, equipments } = req.body;
+    console.log('tribulation', tribulation);
+    console.log('characters', characters);
+    console.log('equipments', equipments);
+    let charactersEncoded = characters;
+    let equipmentsEncoded = equipments;
+    try {
+      charactersEncoded = JSON.parse(characters);
+      equipmentsEncoded = JSON.parse(equipments);
+    } catch (err) {
+      console.log('parse fail', err);
+    }
 
     try {
       const createdScence = await adminService.createScences({
-        name,
-        description,
-        filmingAddress,
-        filmingStartDate,
-        filmingEndDate,
-        setQuantity,
+        tribulation,
+        characters: charactersEncoded,
+        equipments: equipmentsEncoded,
       });
 
       return res.status(201).send(createdScence);
@@ -38,35 +40,53 @@ router
 router
   .route('/scences/:scenceId')
   .get(async (req, res) => {
-    const { scenceId } = req.params;
-    const scenceDetail = await adminService.getScenceById(scenceId);
+    try {
+      const { scenceId } = req.params;
+      try {
+        // eslint-disable-next-line radix
+        parseInt(scenceId);
+        if (scenceId == null || scenceId == undefined) throw Error();
+      } catch (e) {
+        return res.status(400).send({ error: 'Not valid input' });
+      }
 
-    if (!scenceDetail) return res.status(404).send();
-    return res.send(scenceDetail);
+      const scenceDetail = await adminService.getScenceById(scenceId);
+
+      if (!scenceDetail) return res.status(404).send();
+      return res.send(scenceDetail);
+    } catch (err) {
+      return res.status(400).send({ error: err.message });
+    }
   })
   .put(async (req, res) => {
     const { scenceId } = req.params;
-    const {
-      name,
-      description,
-      filmingAddress,
-      filmingStartDate,
-      filmingEndDate,
-      setQuantity,
-    } = req.body;
-
+    const { tribulation, characters, equipments } = req.body;
+    console.log('tribulation', tribulation);
+    console.log('characters', characters);
+    console.log('equipments', equipments);
+    let charactersEncoded = characters;
+    let equipmentsEncoded = equipments;
     try {
-      const updateResult = await adminService.updateScenceById(scenceId, {
-        name,
-        description,
-        filmingAddress,
-        filmingStartDate,
-        filmingEndDate,
-        setQuantity,
+      charactersEncoded = JSON.parse(characters);
+      equipmentsEncoded = JSON.parse(equipments);
+    } catch (err) {
+      console.log('parse fail', err);
+    }
+    // charactersEncoded = JSON.parse(charactersEncoded);
+    console.log('charactersEncoded', charactersEncoded);
+    console.log('equipmentsEncoded', equipmentsEncoded);
+    try {
+      const updateResult = await adminService.updateScence({
+        id: scenceId,
+        tribulation,
+        characters: charactersEncoded,
+        equipments: equipmentsEncoded,
       });
+
       return res.send(updateResult);
     } catch (err) {
-      return res.status(404).send({ error: err.message });
+      console.log('Erorr when update scence');
+      return res.status(400).send({ error: err.message });
     }
   })
   .delete(async (req, res) => {
@@ -74,7 +94,7 @@ router
     try {
       const deleteResult = await adminService.deleteScenceById(scenceId);
       console.log('deleteResult', deleteResult);
-      return res.send({ success: deleteResult === 1 });
+      return res.send(deleteResult);
     } catch (err) {
       return res.status(404).send({ error: err.message });
     }

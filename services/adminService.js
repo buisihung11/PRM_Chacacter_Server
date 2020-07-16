@@ -1,5 +1,9 @@
+/* eslint-disable nonblock-statement-body-position */
+/* eslint-disable no-lonely-if */
+/* eslint-disable no-restricted-syntax */
 /* eslint-disable no-useless-catch */
 /* eslint-disable class-methods-use-this */
+const { Op } = require('sequelize');
 const {
   Scence,
   Character,
@@ -7,6 +11,7 @@ const {
   ActorCharactor,
   Equipment,
   User,
+  ScenceEquipment,
 } = require('../models/index');
 const sequelize = require('../utils/sequilize');
 
@@ -16,48 +21,344 @@ class AdminService {
   }
 
   async getAllScences() {
-    const scences = await Scence.findAll();
+    const scences = await Scence.findAll({
+      where: {
+        isDeleted: false,
+      },
+    });
 
     return scences;
   }
 
   async getScenceById(id) {
-    const scenceDetail = await Scence.findOne({
+    try {
+      const scenceDetail = await Scence.findOne({
+        where: {
+          id,
+          isDeleted: false,
+        },
+        include: [
+          {
+            required: false,
+            model: Character,
+            where: {
+              isDeleted: false,
+            },
+            include: [
+              {
+                model: Actor,
+                include: [
+                  {
+                    model: User,
+                    // through: {
+                    //   attributes: ['name', 'username', 'role', 'gender'],
+                    // },
+                  },
+                ],
+                through: {
+                  attributes: [],
+                },
+              },
+            ],
+          },
+          {
+            required: false,
+            model: Equipment,
+            where: {
+              status: 'available',
+              isDeleted: false,
+            },
+            through: {
+              attributes: ['quantity'],
+            },
+          },
+        ],
+      });
+      if (!scenceDetail) throw Error('Not found that tribulation');
+      const equipment = scenceDetail.get({ plain: true }).Equipment;
+
+      const normalizedEquipmets = equipment.map((equipmentItem) => ({
+        ...equipmentItem,
+        quantity: equipmentItem.ScenceEquipment.quantity,
+      }));
+
+      const normalizeScenceDetail = {
+        ...scenceDetail.get({ plain: true }),
+        Equipment: normalizedEquipmets,
+      };
+      return normalizeScenceDetail;
+    } catch (e) {
+      console.log(e);
+      throw e;
+    }
+  }
+
+  async updateScence({
+    id: scenceId,
+    tribulation,
+    characters = [],
+    equipments = [],
+  }) {
+    // check required input
+    if (!scenceId || !tribulation) {
+      throw new Error('Invalid Input');
+    }
+
+    const scence = await Scence.findOne({
       where: {
-        id,
+        id: scenceId,
         isDeleted: false,
       },
       include: [
         {
-          // required: true,
-          model: Character,
-          include: [
-            {
-              model: Actor,
-              include: [
-                {
-                  model: User,
-                  // through: {
-                  //   attributes: ['name', 'username', 'role', 'gender'],
-                  // },
-                },
-              ],
-              through: {
-                attributes: [],
-              },
-            },
-          ],
+          model: Equipment,
         },
         {
-          // required: true,
-          model: Equipment,
-          through: {
-            attributes: [],
-          },
+          model: Character,
         },
       ],
     });
-    return scenceDetail;
+
+    if (!scence) throw new Error('Not found that actor!');
+
+    try {
+      const result = await sequelize.transaction(async (t) => {
+        // S1. update equipments
+        const updatedScence = await scence.update({
+          name: tribulation.name,
+          description: tribulation.description,
+          filmingAddress: tribulation.filmingAddress,
+          filmingStartDate: tribulation.filmingStartDate,
+          filmingEndDate: tribulation.filmingEndDate,
+          setQuantity: tribulation.setQuantity,
+        });
+
+        // check has Error
+        let hasError = false;
+        if (equipments && Array.isArray(equipments)) {
+          for await (const equipmentItem of equipments) {
+            const { id: equipmentId, quantity: updateQuantity } = equipmentItem;
+            const equipment = await Equipment.findOne({
+              where: {
+                id: equipmentId,
+              },
+            });
+            if (!equipment) {
+              hasError = true;
+              throw Error(`Not found equipment ${equipmentId}`);
+            }
+            // check if that equipment is was added before
+            const addedEquipment = await ScenceEquipment.findOne({
+              where: { EquipmentId: equipmentId, ScenceId: scence.id },
+            });
+            const isNew = addedEquipment === null;
+            let enoughQuantity = false;
+            if (isNew) {
+              enoughQuantity = equipment.quantity >= updateQuantity;
+            } else {
+              enoughQuantity =
+                equipment.quantity + addedEquipment.quantity >= updateQuantity;
+            }
+            if (!enoughQuantity) {
+              hasError = true;
+              throw Error("Don't have enough quantity");
+            }
+            if (isNew) {
+              await equipment.decrement({
+                quantity: updateQuantity,
+              });
+              await ScenceEquipment.create({
+                ScenceId: scence.id,
+                EquipmentId: equipmentId,
+                quantity: updateQuantity,
+              });
+            } else {
+              // await equipment.increment({
+              //   quantity: addedEquipment.quantity,
+              // });
+              await equipment.decrement({
+                quantity: updateQuantity - addedEquipment.quantity,
+              });
+              await addedEquipment.destroy();
+              await ScenceEquipment.create({
+                ScenceId: scence.id,
+                EquipmentId: equipmentId,
+                quantity: updateQuantity,
+              });
+            }
+          }
+        }
+        if (hasError) throw Error('Error when update equipment');
+        // delete all equipment that not in update request
+        const deleteEquipments = await ScenceEquipment.findAll({
+          where: {
+            EquipmentId: {
+              [Op.notIn]: equipments.map((e) => e.id),
+            },
+          },
+        });
+
+        deleteEquipments.forEach(async (deleteEquipment) => {
+          const equipment = await Equipment.findOne({
+            where: {
+              id: deleteEquipment.EquipmentId,
+            },
+          });
+
+          await equipment.increment({
+            quantity: deleteEquipment.quantity,
+          });
+
+          await deleteEquipment.destroy();
+        });
+
+        // update characters
+        // neu khong co id => them moi
+        console.log('characters', characters);
+
+        // tim nhung character cua scence Id nay ma khong nam trong character
+        const deleteCharacters = await Character.findAll({
+          where: {
+            isDeleted: false,
+            id: {
+              [Op.notIn]: characters.map(({ id }) => id).filter((e) => !!e),
+            },
+          },
+          include: [
+            {
+              model: Scence,
+              where: {
+                id: scenceId,
+              },
+            },
+          ],
+        });
+
+        console.log('deleteCharacters', deleteCharacters);
+
+        for await (const deleteCharacter of deleteCharacters) {
+          await ActorCharactor.destroy({
+            where: {
+              CharacterId: deleteCharacter.id,
+            },
+            individualHooks: true,
+          });
+          await deleteCharacter.update({
+            isDeleted: true,
+          });
+        }
+
+        if (characters && Array.isArray(characters)) {
+          for await (const characterItem of characters) {
+            const {
+              id: characterId,
+              name,
+              descriptionFileURL,
+              actors,
+            } = characterItem;
+            const isNewCharacter = characterId == null;
+            console.log('isNewCharacter', isNewCharacter);
+            console.log(
+              'actors && Array.isArray(actors)',
+              actors && Array.isArray(actors),
+            );
+            console.log('actors && Array.isArray(actors)', JSON.parse(actors));
+            if (isNewCharacter) {
+              let actorArr =
+                actors && Array.isArray(actors) ? actors : JSON.parse(actors);
+              if (actorArr && Array.isArray(actorArr)) {
+                // check if has that actor
+                for await (const actorId of actorArr) {
+                  const actor = await Actor.findByPk(actorId);
+                  if (!actor) throw Error(`Not found actor ${actorId}`);
+                }
+              }
+              const addedCharacter = await Character.create({
+                name,
+                descriptionFileURL,
+                ScenceId: scenceId,
+              });
+              if (actorArr && Array.isArray(actorArr)) {
+                await ActorCharactor.bulkCreate(
+                  actorArr.map((actorId) => ({
+                    ActorId: actorId,
+                    CharacterId: addedCharacter.id,
+                  })),
+                  {
+                    individualHooks: true,
+                  },
+                );
+              }
+            } else {
+              let actorArr =
+                actors && Array.isArray(actors) ? actors : JSON.parse(actors);
+              const updatedCharacter = await Character.findByPk(characterId);
+              if (!updatedCharacter) {
+                throw Error(`Cannot find character ${characterId}`);
+              }
+
+              await updatedCharacter.update({
+                name,
+                descriptionFileURL,
+              });
+
+              if (actorArr && Array.isArray(actorArr)) {
+                for await (const actorId of actorArr) {
+                  const actor = await ActorCharactor.findOne({
+                    where: {
+                      ActorId: actorId,
+                      CharacterId: characterId,
+                    },
+                  });
+                  if (!actor) {
+                    await ActorCharactor.create({
+                      ActorId: actorId,
+                      CharacterId: characterId,
+                    });
+                  }
+                }
+              }
+
+              // destroy actor not in updated Actor
+              const destroysResult = await ActorCharactor.destroy({
+                where: {
+                  CharacterId: characterId,
+                  ActorId: {
+                    [Op.notIn]: actorArr || [],
+                  },
+                },
+                individualHooks: true,
+              });
+              console.log('destroysResult', destroysResult);
+            }
+          }
+        }
+        console.log(
+          'characters.map(({ id }) => id)',
+          characters.map(({ id }) => id).filter((e) => !!e),
+        );
+
+        // await Character.update(
+        //   {
+        //     isDeleted: true,
+        //   },
+        //   {
+        //     where: {
+        //       ScenceId: scenceId,
+        //       id: {
+        //         [Op.notIn]: characters.map(({ id }) => id),
+        //       },
+        //     },
+        //   },
+        // );
+        return updatedScence;
+      });
+      return result;
+    } catch (error) {
+      console.log('error', error);
+      console.log(error.message);
+      throw error;
+    }
   }
 
   // #region Actor
@@ -325,87 +626,192 @@ class AdminService {
 
   // #region CRUD Scence
 
-  async createScences({
-    name,
-    description,
-    filmingAddress,
-    filmingStartDate,
-    filmingEndDate,
-    setQuantity,
-  }) {
+  async createScences({ tribulation, characters = [], equipments = [] }) {
     if (
       !(
-        name ||
-        description ||
-        filmingAddress ||
-        filmingStartDate ||
-        filmingEndDate ||
-        setQuantity
+        tribulation ||
+        tribulation.name ||
+        tribulation.filmingStartDate ||
+        tribulation.filmingEndDate ||
+        tribulation.setQuantity
       )
     ) {
       throw new Error('Not valid input');
     }
 
-    const createdScence = await Scence.create(
-      {
-        name,
-        description,
-        filmingAddress,
-        filmingStartDate,
-        filmingEndDate,
-        setQuantity,
-      },
-      {},
-    );
-
-    return createdScence;
-  }
-
-  async updateScenceById(
-    scenceId,
-    {
+    const {
       name,
       description,
       filmingAddress,
       filmingStartDate,
       filmingEndDate,
       setQuantity,
-    },
-  ) {
-    const scence = await Scence.findByPk(scenceId);
-    if (!scence) throw new Error('Not founded that scence');
+    } = tribulation;
+    try {
+      const result = sequelize.transaction(async (t) => {
+        const createdScence = await Scence.create(
+          {
+            name,
+            description,
+            filmingAddress,
+            filmingStartDate,
+            filmingEndDate,
+            setQuantity,
+          },
+          {},
+        );
 
-    const updateResult = await Scence.update(
-      {
-        name,
-        description,
-        filmingAddress,
-        filmingStartDate,
-        filmingEndDate,
-        setQuantity,
-      },
-      {
-        where: {
-          id: scenceId,
-        },
-        returning: true,
-      },
-    );
+        // create equipmets with that scence
+        if (equipments && Array.isArray(equipments)) {
+          for await (const equipmentItem of equipments) {
+            const { id: equipmentId, quantity: createQuantity } = equipmentItem;
+            const equipment = await Equipment.findOne({
+              where: {
+                id: equipmentId,
+              },
+            });
+            if (!equipment) {
+              throw Error(`Not found equipment ${equipmentId}`);
+            }
 
-    return updateResult[1][0];
+            let enoughQuantity = false;
+            enoughQuantity = equipment.quantity >= createQuantity;
+
+            if (!enoughQuantity) {
+              throw Error("Don't have enough quantity");
+            }
+            await equipment.decrement({
+              quantity: createQuantity,
+            });
+            await ScenceEquipment.create({
+              ScenceId: createdScence.id,
+              EquipmentId: equipmentId,
+              quantity: createQuantity,
+            });
+          }
+        }
+
+        // create characters
+        if (characters && Array.isArray(characters)) {
+          for await (const characterItem of characters) {
+            const {
+              name: characterName,
+              descriptionFileURL,
+              actors,
+            } = characterItem;
+
+            console.log(
+              'actors && Array.isArray(actors)',
+              actors && Array.isArray(actors),
+            );
+            console.log('actors && Array.isArray(actors)', JSON.parse(actors));
+            const actorArr =
+              actors && Array.isArray(actors) ? actors : JSON.parse(actors);
+            if (actorArr && Array.isArray(actorArr)) {
+              // check if has that actor
+              for await (const actorId of actorArr) {
+                const actor = await Actor.findByPk(actorId);
+                if (!actor) throw Error(`Not found actor ${actorId}`);
+              }
+            }
+            const addedCharacter = await Character.create({
+              name: characterName,
+              descriptionFileURL,
+              ScenceId: createdScence.id,
+            });
+            if (actorArr && Array.isArray(actorArr)) {
+              await ActorCharactor.bulkCreate(
+                actorArr.map((actorId) => ({
+                  ActorId: actorId,
+                  CharacterId: addedCharacter.id,
+                })),
+                {
+                  individualHooks: true,
+                },
+              );
+            }
+          }
+        }
+
+        return createdScence;
+      });
+      return result;
+    } catch (error) {
+      throw error;
+    }
   }
 
   async deleteScenceById(scenceId) {
-    const scence = await Scence.findByPk(scenceId);
-    if (!scence) throw new Error('Not founded that scence');
-
-    const updateResult = await Scence.destroy({
+    const scence = await Scence.findOne({
       where: {
         id: scenceId,
+        isDeleted: false,
       },
     });
+    if (!scence) throw new Error('Not founded that scence');
+    try {
+      const result = await sequelize.transaction(async (t) => {
+        // delete all equipment
 
-    return updateResult;
+        const deleteEquipments = await ScenceEquipment.findAll({
+          where: {
+            ScenceId: scence.id,
+          },
+        });
+
+        deleteEquipments.forEach(async (deleteEquipment) => {
+          const equipment = await Equipment.findOne({
+            where: {
+              id: deleteEquipment.EquipmentId,
+            },
+          });
+
+          await equipment.increment({
+            quantity: deleteEquipment.quantity,
+          });
+
+          await deleteEquipment.destroy();
+        });
+
+        // destroy ActorCharactor
+        const deleteCharacters = await Character.findAll({
+          where: {
+            isDeleted: false,
+          },
+          include: [
+            {
+              model: Scence,
+              where: {
+                id: scenceId,
+              },
+            },
+          ],
+        });
+
+        console.log('deleteCharacters', deleteCharacters);
+
+        for await (const deleteCharacter of deleteCharacters) {
+          await ActorCharactor.destroy({
+            where: {
+              CharacterId: deleteCharacter.id,
+            },
+            individualHooks: true,
+          });
+          await deleteCharacter.update({
+            isDeleted: true,
+          });
+        }
+
+        const updateResult = await scence.update({
+          isDeleted: true,
+        });
+        return updateResult;
+      });
+
+      return result;
+    } catch (e) {
+      throw e;
+    }
   }
 
   // #endregion
