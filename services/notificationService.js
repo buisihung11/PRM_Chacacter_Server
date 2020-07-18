@@ -47,7 +47,11 @@ class NotificationService {
             title,
             body: content,
           },
-          data: { click_action: 'FLUTTER_NOTIFICATION_CLICK' },
+          data: {
+            click_action: 'FLUTTER_NOTIFICATION_CLICK',
+            title,
+            body: content,
+          },
           tokens: registrationTokens,
         };
 
