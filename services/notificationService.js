@@ -6,6 +6,7 @@
 const { User, Token, Actor } = require('../models');
 const firebaseApp = require('../config/firebase');
 
+console.log('User', User);
 class NotificationService {
   setUser(user) {
     this.user = user;

@@ -1,3 +1,4 @@
+/* eslint-disable no-use-before-define */
 const { DataTypes } = require('sequelize');
 const { hashSync } = require('bcryptjs');
 const sequelize = require('../utils/sequilize');
@@ -123,87 +124,11 @@ const User = sequelize.define(
   },
 );
 
-const notificationService = require('../services/notificationService');
-
-console.log('notificationService', notificationService);
-
 const ActorCharactor = sequelize.define(
   'ActorCharactor',
   {},
   {
     freezeTableName: true,
-    hooks: {
-      afterCreate: async (actorCharactor, options) => {
-        const actorId = actorCharactor.get({ plain: true }).ActorId;
-        const characterId = actorCharactor.get({ plain: true }).CharacterId;
-        const scence = await Scence.findOne({
-          include: [
-            {
-              model: Character,
-              where: {
-                id: characterId,
-              },
-            },
-          ],
-        });
-        const character = await Character.findByPk(characterId);
-        // TODO : ADD TO QUEUE
-        await notificationService.sendNotificationToActor({
-          actorId,
-          title: `Ban da nhan duoc vai dien moi trong ${scence.name}!`,
-          content: `Vai ${character.name}`,
-        });
-      },
-      afterUpdate: async (actorCharactor, options) => {
-        const actorId = actorCharactor.get({ plain: true }).ActorId;
-        const characterId = actorCharactor.get({ plain: true }).CharacterId;
-        const scence = await Scence.findOne({
-          include: [
-            {
-              model: Character,
-              where: {
-                id: characterId,
-              },
-            },
-          ],
-        });
-
-        const character = await Character.findByPk(characterId);
-
-        await notificationService.sendNotificationToActor({
-          actorId,
-          title: `Vai dien duoc cap nhat ${scence.name}`,
-          content: `Vai ${character.name}`,
-        });
-      },
-      afterDestroy: async (actorCharactor, options) => {
-        const actorId = actorCharactor.get({ plain: true }).ActorId;
-        const characterId = actorCharactor.get({ plain: true }).CharacterId;
-        const scence = await Scence.findOne({
-          include: [
-            {
-              model: Character,
-              where: {
-                id: characterId,
-              },
-            },
-          ],
-        });
-
-        const character = await Character.findByPk(characterId);
-
-        // TODO ADD QUEUE
-
-        await notificationService.sendNotificationToActor({
-          actorId,
-          title: `Vai dien duoc cap nhat ${scence.name}`,
-          content: `Vai ${character.name}`,
-        });
-      },
-      // afterBulkCreate: (models, options) => {
-      //   console.log('afterBulkCreate', models, options);
-      // },
-    },
   },
 );
 const ScenceEquipment = sequelize.define(
@@ -241,9 +166,7 @@ const configModel = async () => {
   // await ActorCharactor.sync({ force: true });
   // await ScenceEquipment.sync({ force: true });
 };
-
 module.exports = {
-  configModel,
   User,
   Token,
   Scence,
@@ -252,4 +175,84 @@ module.exports = {
   Actor,
   ActorCharactor,
   ScenceEquipment,
+  configModel,
 };
+
+const notificationService = require('../services/notificationService');
+
+console.log('notificationService', notificationService);
+const afterCreateCharactor = async (actorCharactor) => {
+  const actorId = actorCharactor.get({ plain: true }).ActorId;
+  const characterId = actorCharactor.get({ plain: true }).CharacterId;
+  const scence = await Scence.findOne({
+    include: [
+      {
+        model: Character,
+        where: {
+          id: characterId,
+        },
+      },
+    ],
+  });
+  const character = await Character.findByPk(characterId);
+  // TODO : ADD TO QUEUE
+  const message = {
+    actorId,
+    title: `Ban da nhan duoc vai dien moi trong ${scence.name}!`,
+    content: `Vai ${character.name}`,
+  };
+  await notificationService.sendNotificationToActor(message);
+};
+const afterUpdateCharactor = async (actorCharactor) => {
+  const actorId = actorCharactor.get({ plain: true }).ActorId;
+  const characterId = actorCharactor.get({ plain: true }).CharacterId;
+  const scence = await Scence.findOne({
+    include: [
+      {
+        model: Character,
+        where: {
+          id: characterId,
+        },
+      },
+    ],
+  });
+
+  const character = await Character.findByPk(characterId);
+
+  const message = {
+    actorId,
+    title: `Ban da nhan duoc vai dien moi trong ${scence.name}!`,
+    content: `Vai ${character.name}`,
+  };
+
+  await notificationService.sendNotificationToActor(message);
+};
+const afterDestroyCharactor = async (actorCharactor) => {
+  const actorId = actorCharactor.get({ plain: true }).ActorId;
+  const characterId = actorCharactor.get({ plain: true }).CharacterId;
+  const scence = await Scence.findOne({
+    include: [
+      {
+        model: Character,
+        where: {
+          id: characterId,
+        },
+      },
+    ],
+  });
+
+  const character = await Character.findByPk(characterId);
+
+  // TODO ADD QUEUE
+  const message = {
+    actorId,
+    title: `Vai dien duoc cap nhat ${scence.name}`,
+    content: `Vai ${character.name}`,
+  };
+  await notificationService.sendNotificationToActor(message);
+};
+
+// add hook
+ActorCharactor.addHook('afterCreate', afterCreateCharactor);
+ActorCharactor.addHook('afterUpdate', afterUpdateCharactor);
+ActorCharactor.addHook('afterDestroy', afterDestroyCharactor);
