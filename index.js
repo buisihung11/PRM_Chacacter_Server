@@ -21,14 +21,13 @@ const tokenRoute = require('./routes/token');
 
 const isAuth = require('./middlewares/is-Auth');
 const isAuthor = require('./middlewares/is-Author');
-const notificationService = require('./services/notificationService');
 
 dotenv.config();
-const { PORT = 5000 } = process.env;
+const { PORT = 5000, REDIS_URL = 'redis://127.0.0.1:6379' } = process.env;
 
 const app = express();
 
-// const redisClient = redis.createClient();
+// const redisClient = redis.createClient(REDIS_URL);
 
 // redisClient.set('name', 'Hung Bui', redis.print);
 // app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));

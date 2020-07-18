@@ -179,6 +179,7 @@ module.exports = {
 };
 
 const notificationService = require('../services/notificationService');
+const notificationQueue = require('../queues/notificationQueue');
 
 console.log('notificationService', notificationService);
 const afterCreateCharactor = async (actorCharactor) => {
@@ -201,7 +202,9 @@ const afterCreateCharactor = async (actorCharactor) => {
     title: `Ban da nhan duoc vai dien moi trong ${scence.name}!`,
     content: `Vai ${character.name}`,
   };
-  await notificationService.sendNotificationToActor(message);
+
+  await notificationQueue.add(message);
+  // await notificationService.sendNotificationToActor(message);
 };
 const afterUpdateCharactor = async (actorCharactor) => {
   const actorId = actorCharactor.get({ plain: true }).ActorId;
@@ -224,8 +227,8 @@ const afterUpdateCharactor = async (actorCharactor) => {
     title: `Ban da nhan duoc vai dien moi trong ${scence.name}!`,
     content: `Vai ${character.name}`,
   };
-
-  await notificationService.sendNotificationToActor(message);
+  await notificationQueue.add(message);
+  // await notificationService.sendNotificationToActor(message);
 };
 const afterDestroyCharactor = async (actorCharactor) => {
   const actorId = actorCharactor.get({ plain: true }).ActorId;
@@ -249,7 +252,8 @@ const afterDestroyCharactor = async (actorCharactor) => {
     title: `Vai dien duoc cap nhat ${scence.name}`,
     content: `Vai ${character.name}`,
   };
-  await notificationService.sendNotificationToActor(message);
+  await notificationQueue.add(message);
+  // await notificationService.sendNotificationToActor(message);
 };
 
 // add hook
