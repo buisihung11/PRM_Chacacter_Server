@@ -46,6 +46,8 @@ class NotificationService {
           notification: {
             title,
             body: content,
+            image:
+              'https://images.unsplash.com/photo-1534684686641-05569203ecca?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=500&q=300',
           },
           data: {
             click_action: 'FLUTTER_NOTIFICATION_CLICK',
