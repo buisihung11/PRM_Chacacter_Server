@@ -151,7 +151,7 @@ const ActorCharactor = sequelize.define(
         await notificationService.sendNotificationToActor({
           actorId,
           title: `Ban da nhan duoc vai dien moi trong ${scence.name}!`,
-          content: `Vai ${character?.name}`,
+          content: `Vai ${character.name}`,
         });
       },
       afterUpdate: async (actorCharactor, options) => {
@@ -172,8 +172,8 @@ const ActorCharactor = sequelize.define(
 
         await notificationService.sendNotificationToActor({
           actorId,
-          title: `Vai dien duoc cap nhat ${scence?.name}`,
-          content: `Vai ${character?.name}`,
+          title: `Vai dien duoc cap nhat ${scence.name}`,
+          content: `Vai ${character.name}`,
         });
       },
       afterDestroy: async (actorCharactor, options) => {
@@ -196,8 +196,8 @@ const ActorCharactor = sequelize.define(
 
         await notificationService.sendNotificationToActor({
           actorId,
-          title: `Vai dien duoc cap nhat ${scence?.name}`,
-          content: `Vai ${character?.name}`,
+          title: `Vai dien duoc cap nhat ${scence.name}`,
+          content: `Vai ${character.name}`,
         });
       },
       // afterBulkCreate: (models, options) => {
