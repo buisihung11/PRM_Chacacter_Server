@@ -3,8 +3,8 @@
 /* eslint-disable prefer-template */
 /* eslint-disable no-console */
 /* eslint-disable class-methods-use-this */
-const firebaseApp = require('../config/firebase');
 const { User, Token, Actor } = require('../models');
+const firebaseApp = require('../config/firebase');
 
 class NotificationService {
   setUser(user) {
@@ -60,6 +60,7 @@ class NotificationService {
       throw err;
     }
   }
+
   async sendNotificationToUser({ userId, content, title }) {
     // get all token from that userID
     try {
