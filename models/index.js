@@ -123,6 +123,10 @@ const User = sequelize.define(
   },
 );
 
+const notificationService = require('../services/notificationService');
+
+console.log('notificationService', notificationService);
+
 const ActorCharactor = sequelize.define(
   'ActorCharactor',
   {},
@@ -142,55 +146,13 @@ const ActorCharactor = sequelize.define(
             },
           ],
         });
-        console.log('actorId, characterId', actorId, characterId);
-        console.log('afterCreate ', scence);
-        // try {
-        //   let result;
-        //   const userModel = await User.findOne({
-        //     include: [
-        //       {
-        //         model: Actor,
-        //         required: true,
-        //         where: {
-        //           id: actorId,
-        //         },
-        //       },
-        //       {
-        //         model: Token,
-        //         required: true,
-        //       },
-        //     ],
-        //   });
-        //   if (!userModel) return;
-        //   console.log('gui thong bao user', userModel.get({ plain: true }));
-        //   const userObj = userModel.get({ plain: true });
-        //   const tokens = userObj.Tokens;
-        //   if (tokens.length != 0) {
-        //     const registrationTokens = tokens.map((token) => token.token);
-        //     console.log('registrationTokens', registrationTokens);
-        //     const message = {
-        //       notification: {
-        //         title: 'Ban da nhan duoc vai dien moi',
-        //         body: `Character Id ${characterId}`,
-        //       },
-        //       data: { click_action: 'FLUTTER_NOTIFICATION_CLICK' },
-        //       tokens: registrationTokens,
-        //     };
-
-        //     const res = await firebaseApp.messaging().sendMulticast(message);
-        //     console.log('Sending notification res', res);
-        //     result = res;
-        //   }
-        //   // eslint-disable-next-line consistent-return
-        //   return result;
-        // } catch (err) {
-        //   console.log('err', err);
-        // }
-        // await notificationService.sendNotificationToActor({
-        //   actorId,
-        //   title: 'Ban da nhan duoc vai dien moi',
-        //   content: `Character Id ${characterId}`,
-        // });
+        const character = await Character.findByPk(characterId);
+        // TODO : ADD TO QUEUE
+        await notificationService.sendNotificationToActor({
+          actorId,
+          title: `Ban da nhan duoc vai dien moi trong ${scence.name}!`,
+          content: `Vai ${character?.name}`,
+        });
       },
       afterUpdate: async (actorCharactor, options) => {
         const actorId = actorCharactor.get({ plain: true }).ActorId;
@@ -205,13 +167,14 @@ const ActorCharactor = sequelize.define(
             },
           ],
         });
-        console.log('actorId, characterId', actorId, characterId);
-        console.log('afterUpdate ', scence);
-        // await notificationService.sendNotificationToActor({
-        //   actorId,
-        //   title: 'Ban da nhan duoc vai dien moi',
-        //   content: `Character Id ${characterId}`,
-        // });
+
+        const character = await Character.findByPk(characterId);
+
+        await notificationService.sendNotificationToActor({
+          actorId,
+          title: `Vai dien duoc cap nhat ${scence?.name}`,
+          content: `Vai ${character?.name}`,
+        });
       },
       afterDestroy: async (actorCharactor, options) => {
         const actorId = actorCharactor.get({ plain: true }).ActorId;
@@ -226,55 +189,16 @@ const ActorCharactor = sequelize.define(
             },
           ],
         });
-        console.log('actorId, characterId', actorId, characterId);
-        console.log('afterDestroy ', scence);
-        // await notificationService.sendNotificationToActor({
-        //   actorId,
-        //   title: 'Vai dien da duoc huy bo',
-        //   content: `Character Id ${characterId}`,
-        // });
-        // try {
-        //   let result;
-        //   const userModel = await User.findOne({
-        //     include: [
-        //       {
-        //         model: Actor,
-        //         required: true,
-        //         where: {
-        //           id: actorId,
-        //         },
-        //       },
-        //       {
-        //         model: Token,
-        //         required: true,
-        //       },
-        //     ],
-        //   });
-        //   if (!userModel) return;
-        //   console.log('gui thong bao user', userModel.get({ plain: true }));
-        //   const userObj = userModel.get({ plain: true });
-        //   const tokens = userObj.Tokens;
-        //   if (tokens.length != 0) {
-        //     const registrationTokens = tokens.map((token) => token.token);
-        //     console.log('registrationTokens', registrationTokens);
-        //     const message = {
-        //       notification: {
-        //         title: 'Vai dien da duoc huy bo',
-        //         body: `Character Id ${characterId}`,
-        //       },
-        //       data: { click_action: 'FLUTTER_NOTIFICATION_CLICK' },
-        //       tokens: registrationTokens,
-        //     };
 
-        //     const res = await firebaseApp.messaging().sendMulticast(message);
-        //     console.log('Sending notification res', res);
-        //     result = res;
-        //   }
-        //   // eslint-disable-next-line consistent-return
-        //   return result;
-        // } catch (err) {
-        //   console.log('err', err);
-        // }
+        const character = await Character.findByPk(characterId);
+
+        // TODO ADD QUEUE
+
+        await notificationService.sendNotificationToActor({
+          actorId,
+          title: `Vai dien duoc cap nhat ${scence?.name}`,
+          content: `Vai ${character?.name}`,
+        });
       },
       // afterBulkCreate: (models, options) => {
       //   console.log('afterBulkCreate', models, options);
